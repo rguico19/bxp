@@ -20,7 +20,7 @@ if (arrArrangement.length > 0) {
 			var newRate = queryDiscount[0][4];
 			var discMode = queryDiscount[0][5];
 			var discPercent = 100 - queryDiscount[0][6];
-			var discAmount = queryDiscount[0][7];
+			var discAmount = queryDiscount[0][7]
 
 			rbv_api.println("discPercent = "+Number( queryDiscount[0][6] ));
 
