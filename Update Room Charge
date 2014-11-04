@@ -1,0 +1,58 @@
+// NEW CODE
+
+var amnt = Number({!room_rate});
+var strSequence = "{!rate_adjustment_sequence}";
+var splitString = strSequence.split(",");
+var ctr = 0
+
+while (ctr < splitString.length) {
+
+	{!#LOOP_BEGIN.R284427}
+
+		if (splitString[ctr] == Number("{!R284427.id}")) {
+			
+			if("{!R284427.disc_mode#code}" == "P"){
+				amnt = amnt * (1 - (Number({!R284427.percentage#value})/100));
+				rbv_api.println("percentage "+(1-(Number({!R284427.percentage#value})/100)));
+			}
+			else{
+				var newRoomRate = Number("{!R284427.new_room_rate}");
+
+				if (newRoomRate > 0) {
+					amnt = newRoomRate;
+				}
+				else {
+					amnt = amnt - Number({!R284427.amount#value});
+				}	
+			}
+
+			rbv_api.println("NEW amnt "+amnt);
+		}
+	
+	{!#LOOP_END.R284427}
+
+	ctr++;
+
+}
+
+return amnt * {!nights};
+
+// OLD CODE
+
+// var rateNights = 0;
+
+// if (Number({!new_room_rate}) > 0) {
+// 	rateNights = {!new_room_rate};
+// }
+// else if (Number("{!R284427.new_room_rate}") > 0) {
+// 	rateNights = {!R284427.new_room_rate};
+// }
+// else {
+// 	rateNights = {!room_rate};
+// }
+
+// rateNights = rateNights * {!nights};
+// var extraAdult = {!extra_adult}*{!R284236.extra_adult_rate};
+// var extraChild = {!extra_children}*{!R284236.extra_child_rate};
+
+// return rateNights + extraAdult + extraChild;
