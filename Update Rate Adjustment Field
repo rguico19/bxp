@@ -1,0 +1,58 @@
+var rateAdjustmentArrangement = "{!rate_adjustment_sequence}";
+var arrArrangement = rateAdjustmentArrangement.split(",");
+var overRideIndex = 0;
+var cacheIndex = 0;
+var finalResult = ( Number({!new_room_rate}) > 0 ? Number({!new_room_rate}) : Number({!R284236.rack_rate}) );
+var totalResult = finalResult;
+
+rbv_api.println(totalResult);
+
+if (arrArrangement.length > 0) {
+	for (var x = 0; x < arrArrangement.length; x++) {
+		var queryDiscount = rbv_api.selectQuery("SELECT id, disc_code, disc_name, override_room_rate_amount, new_room_rate, disc_mode, percentage, amount FROM discount_item WHERE id=?", 1, arrArrangement[x]);
+
+		if (queryDiscount.length > 0) {
+
+			var discID = queryDiscount[0][0];
+			var discCode = queryDiscount[0][1];
+			var discName = queryDiscount[0][2];
+			var overRide = queryDiscount[0][3];
+			var newRate = queryDiscount[0][4];
+			var discMode = queryDiscount[0][5];
+			var discPercent = 100 - queryDiscount[0][6];
+			var discAmount = queryDiscount[0][7];
+
+			rbv_api.println("discPercent = "+Number( queryDiscount[0][6] ));
+
+			if ( Number( queryDiscount[0][6] ) > 0 ) {
+				rbv_api.println("percentage");
+
+				finalResult = finalResult * ( discPercent / 100 );
+				rbv_api.println("percent "+x+" = "+finalResult);
+			}
+			else {
+				rbv_api.println("fixed");
+
+				if ( newRate > 0 ) {
+					finalResult = newRate;
+					totalResult = finalResult;
+					rbv_api.println("new rate "+x+" = "+finalResult);
+				}
+				else {
+					finalResult = finalResult - discAmount;
+					rbv_api.println("fixed a "+x+" = "+finalResult);
+				}
+				
+			}
+
+		}
+	}
+}
+
+rbv_api.println(( finalResult ) * Number( {!nights} ));
+return ( totalResult - finalResult ) * Number( {!nights} ) ;
+
+//if("{!R284427.disc_mode#code}"=="P")
+// return (({!R284236.rack_rate}*{!nights})*({!R284427.percentage}/100))+(({!R284236.extra_adult_rate}*{!extra_adult})*({!R284427.percentage}/100))+(({!R284236.extra_child_rate}*{!extra_children})*({!R284427.percentage}/100));
+//else if ("{!R284427.disc_mode#code}"=="F")
+// return ({!R284427.amount}*{!nights});
