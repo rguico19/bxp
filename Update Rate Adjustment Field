@@ -1,4 +1,4 @@
-/* Author: Ruben  
+/*   
    Trigger Name: Update Rate Adjustment Field
    Purpose: Computes Adjustment Rate to the Room Reservation
    Multiple Rate Adjustment Item currently can be linked to the reservation
@@ -9,14 +9,12 @@ function getAdjustmentRate() {
 	var overRideIndex = 0;
 	var cacheIndex = 0;
 	var finalResult = ( Number("{!new_room_rate}") > 0 ? Number("{!new_room_rate}") : Number("{!R284236.rack_rate}") );
-	var totalResult = 0;
+	var totalResult = finalResult;
 	var objName = "discount_item";
 	if(rateAdjustment.length > 0) {
 		for (var i = 0; i < rateAdjustment.length; i++) {
 			var discCode = rbv_api.getFieldValue(objName, rateAdjustment[i], "disc_code");
-			var overRide = Number(rbv_api.getFieldValue(objName, rateAdjustment[i], "override_room_rate_amount"));
 			var newRate = Number(rbv_api.getFieldValue(objName, rateAdjustment[i], "new_room_rate"));
-			var discMode = rbv_api.getFieldValue(objName, rateAdjustment[i], "disc_mode");
 			var discPercent = Number(rbv_api.getFieldValue(objName, rateAdjustment[i], "percentage"));
 			var discAmount = Number(rbv_api.getFieldValue(objName, rateAdjustment[i], "amount"));
 			//computes discount in percentage
@@ -34,7 +32,10 @@ function getAdjustmentRate() {
 			}
 			
 		}
-		totalResult = finalResult * Number("{!nights}");
+		var room_charge = finalResult * Number("{!nights}");
+		if(isNaN(room_charge)) room_charge = 0;
+		rbv_api.setFieldValue(objName, Number("{!id}"), "room_charge", room_charge);
+		totalResult = ( totalResult - finalResult ) * Number("{!nights}");
 		if(isNaN(totalResult)) totalResult = 0;
 	}
 	
