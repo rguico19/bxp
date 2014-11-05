@@ -34,7 +34,7 @@ function getAdjustmentRate() {
 		}
 		var room_charge = finalResult * Number("{!nights}");
 		if(isNaN(room_charge)) room_charge = 0;
-		rbv_api.setFieldValue(objName, Number("{!id}"), "room_charge", room_charge);
+		rbv_api.setFieldValue("reservation_detail", Number("{!id}"), "room_charge", room_charge);
 		totalResult = ( totalResult - finalResult ) * Number("{!nights}");
 		if(isNaN(totalResult)) totalResult = 0;
 	}
