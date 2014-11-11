@@ -5,14 +5,18 @@
 */
 
 function getAdjustmentRate() {
-	var rateAdjustment = rbv_api.getRelatedIds("R284427", Number("{!id}"));
+    var rateAdjustmentArrangement = "{!rate_adjustment_sequence}";
+	var rateAdjustment = rateAdjustmentArrangement.split(",");
 	var overRideIndex = 0;
 	var cacheIndex = 0;
 	var finalResult = ( Number("{!new_room_rate}") > 0 ? Number("{!new_room_rate}") : Number("{!R284236.rack_rate}") );
 	var totalResult = finalResult;
 	var objName = "discount_item";
-	if(rateAdjustment.length > 0) {
+	if(rateAdjustment.length > 0 && rateAdjustment != null && rateAdjustment != "") {
+		rbv_api.println(rateAdjustment);
+		if(Array.isArray(rateAdjustment) == false) { rateAdjustment = [rateAdjustment]; }
 		for (var i = 0; i < rateAdjustment.length; i++) {
+		    
 			var discCode = rbv_api.getFieldValue(objName, rateAdjustment[i], "disc_code");
 			var newRate = Number(rbv_api.getFieldValue(objName, rateAdjustment[i], "new_room_rate"));
 			var discPercent = Number(rbv_api.getFieldValue(objName, rateAdjustment[i], "percentage"));
