@@ -1,0 +1,35 @@
+// var source = "{!R284328}";
+// var roomRate = Number({!new_room_rate#value});
+// var retVal = 0;
+
+// if(source == "55350"){
+    // retVal = Number({!R284236.publish_rate#value});
+// }else{
+    // if (roomRate > 0) {
+        // retVal = roomRate;
+    // }else if (Number({!R284427.new_room_rate#value}) > 0) {
+        // var newRoomRate = Number({!R284427.new_room_rate#value});
+        // var baseRate = newRoomRate / 1.22;
+        // retVal = baseRate;
+    // }else {
+        // retVal = Number({!R284236.rack_rate#value});
+    // }
+// }
+// return retVal;
+
+var roomRate = Number({!room_rate#value});
+var rsvSource = String('{!R284328.source_code#value}');
+var attachedPackageId = Number({!R2432013#id});
+
+if(rsvSource == 'BXP'){ // IGNORE SINCE PORTAL HAS COMPUTED THIS ALREADY
+    roomRate = roomRate;
+}else{
+    if(attachedPackageId > 0){ // HAS PACKAGE ATTACHED
+        roomRate = Number({!R2432013.package_price#value});
+    }else{ // HAS NO PACKAGE ATTACHED SO WE WILL USE ROOM RACK RATE
+        roomRate = Number({!R284236.rack_rate#value});
+        // PACKAGE PRICE SHOULD REFLECT TO NEW_ROOM_RATE
+    }
+}
+
+return roomRate;
