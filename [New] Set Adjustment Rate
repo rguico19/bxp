@@ -1,53 +1,29 @@
-var rateAdjustmentArrangement = "{!rate_adjustment_sequence}";
-var arrArrangement = rateAdjustmentArrangement.split(",");
-var overRideIndex = 0;
-var cacheIndex = 0;
-var finalResult = Number({!R236375.new_room_rate}) > 0 ? Number({!R236375.new_room_rate}) : Number({!room_rate}) ;
-var totalResult = finalResult;
-
-if (arrArrangement.length > 0) {
-        for (var x = 0; x < arrArrangement.length; x++) {
-                try{
-                        var discCode = rbv_api.getFieldValue("discount_item",parseInt(arrArrangement[x]),"disc_code")||"";
-                        var discName = rbv_api.getFieldValue("discount_item",parseInt(arrArrangement[x]),"disc_name")||"";
-                        var overRide = rbv_api.getFieldValue("discount_item",parseInt(arrArrangement[x]),"override_room_rate_amount")||"";
-                        var newRate = parseFloat(rbv_api.getFieldValue("discount_item",parseInt(arrArrangement[x]),"new_room_rate"))||0;
-                        var discMode = rbv_api.getFieldValue("discount_item",parseInt(arrArrangement[x]),"disc_mode#code")||"";
-                        var discPercent = parseFloat(rbv_api.getFieldValue("discount_item",parseInt(arrArrangement[x]),"percentage"))||0;
-                        var discAmount = parseFloat(rbv_api.getFieldValue("discount_item",parseInt(arrArrangement[x]),"amount"))||0;
-                        var mode = discMode;
-                        rbv_api.println(discCode+"\n"+discName+"\n"+overRide+"\n"+newRate+"\n"+discMode+"\n"+discPercent+"\n"+discAmount+"\n"+mode+"\n");
-                        if (overRide == 1){
-                                if (cacheIndex > 0) {
-                                        if (overRideIndex == cacheIndex) {}
-                                        else {
-                                                finalResult = newRate;
-                                                totalResult = finalResult;
-                                                overRideIndex = x;
-                                                x = 0;
-                                        }
-                                }else {
-                                        finalResult = newRate ;
-                                        totalResult = finalResult;
-                                }
-                                cacheIndex = x;
-                        }
-                        else {
-                                if (mode == "F") {
-                                        rbv_api.println("fixed");
-                                        finalResult = finalResult - ( discAmount  );
-                                        rbv_api.println("result = "+finalResult);
-                                }
-                                else if (mode == "P") {
-                                        rbv_api.println("percentage");
-                                        finalResult = finalResult * ( discPercent / 100 );
-                                        
-                                }
-                        }
-                }catch(e){}
-        }
-}
-
-rbv_api.println("totalResult = " +totalResult);
-rbv_api.println("finalResult = " +finalResult);
-return totalResult - Number(finalResult);
+function setAdjustment() {
+	var adjustments = "{!rate_adjustment_sequence}";
+	var roomRate = ( Number("{!R236375.new_room_rate}") > 0 ? Number("{!R236375.new_room_rate}") : Number("{!room_rate}") ), rateAdjustment = 0,
+	objName = "discount_item", totalResult = 0, adjustedRate = 0, nights = Number("{!nights}");
+	if(adjustments != "") {
+		adjustments = adjustments.split(",");
+		if(Array.isArray(adjustments) == false) { adjustments = [adjustments]; }
+		for (var count in adjustments) {
+				var objId = parseInt(adjustments[count]),
+				overRide = rbv_api.getFieldValue(objName,objId,"override_room_rate_amount"),
+                newRate = Number(rbv_api.getFieldValue(objName,objId,"new_room_rate")),
+				amount = Number(rbv_api.getFieldValue(objName, objId, 'amount')),
+				percent = Number(rbv_api.getFieldValue(objName, objId, 'percentage')),
+				discountMode = rbv_api.getFieldValue(objName, objId, 'disc_mode'),
+				discountCode = String(rbv_api.getCodeById(objName, 'disc_mode', discountMode)),
+				newRate = Number(rbv_api.getFieldValue(objName, objId, "new_room_rate"));
+				
+				if (discountCode == "F") {
+					if (overRide > 0) roomRate = newRate; //If there is an override rate, use it
+					else rateAdjustment += amount; //If the discount is Fixed, add the amount
+				} else rateAdjustment += roomRate * (percent / 100);			
+				//If the discount is percentage add the value of the rate * % to the total adjustment
+			
+		}		
+			
+		if(isNaN(rateAdjustment)) rateAdjustment = 0;
+		return rateAdjustment;
+	}
+} setAdjustment();
