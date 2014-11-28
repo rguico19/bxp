@@ -1,0 +1,53 @@
+var rateAdjustmentArrangement = "{!rate_adjustment_sequence}";
+var arrArrangement = rateAdjustmentArrangement.split(",");
+var overRideIndex = 0;
+var cacheIndex = 0;
+var finalResult = Number({!R236375.new_room_rate}) > 0 ? Number({!R236375.new_room_rate}) : Number({!room_rate}) ;
+var totalResult = finalResult;
+
+if (arrArrangement.length > 0) {
+        for (var x = 0; x < arrArrangement.length; x++) {
+                try{
+                        var discCode = rbv_api.getFieldValue("discount_item",parseInt(arrArrangement[x]),"disc_code")||"";
+                        var discName = rbv_api.getFieldValue("discount_item",parseInt(arrArrangement[x]),"disc_name")||"";
+                        var overRide = rbv_api.getFieldValue("discount_item",parseInt(arrArrangement[x]),"override_room_rate_amount")||"";
+                        var newRate = parseFloat(rbv_api.getFieldValue("discount_item",parseInt(arrArrangement[x]),"new_room_rate"))||0;
+                        var discMode = rbv_api.getFieldValue("discount_item",parseInt(arrArrangement[x]),"disc_mode#code")||"";
+                        var discPercent = parseFloat(rbv_api.getFieldValue("discount_item",parseInt(arrArrangement[x]),"percentage"))||0;
+                        var discAmount = parseFloat(rbv_api.getFieldValue("discount_item",parseInt(arrArrangement[x]),"amount"))||0;
+                        var mode = discMode;
+                        rbv_api.println(discCode+"\n"+discName+"\n"+overRide+"\n"+newRate+"\n"+discMode+"\n"+discPercent+"\n"+discAmount+"\n"+mode+"\n");
+                        if (overRide == 1){
+                                if (cacheIndex > 0) {
+                                        if (overRideIndex == cacheIndex) {}
+                                        else {
+                                                finalResult = newRate;
+                                                totalResult = finalResult;
+                                                overRideIndex = x;
+                                                x = 0;
+                                        }
+                                }else {
+                                        finalResult = newRate ;
+                                        totalResult = finalResult;
+                                }
+                                cacheIndex = x;
+                        }
+                        else {
+                                if (mode == "F") {
+                                        rbv_api.println("fixed");
+                                        finalResult = finalResult - ( discAmount  );
+                                        rbv_api.println("result = "+finalResult);
+                                }
+                                else if (mode == "P") {
+                                        rbv_api.println("percentage");
+                                        finalResult = finalResult * ( discPercent / 100 );
+                                        
+                                }
+                        }
+                }catch(e){}
+        }
+}
+
+rbv_api.println("totalResult = " +totalResult);
+rbv_api.println("finalResult = " +finalResult);
+return totalResult - Number(finalResult);
