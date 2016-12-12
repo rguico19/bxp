@@ -1,4 +1,4 @@
-var todayDate = new Date(rbv_api.getCurrentDate()), origCase = parseInt('{!id}');
+var todayDate = new Date(rbv_api.getCurrentDate()), origCase = parseInt('{!id}'), caseClosed = "{!IsClosed#value}";
 if ("{!sync_status_to_project#value}" == "true") updateCaseStatus();
 //Is a tester, run case version of the script, if tester, use the project version
 function updateCaseStatus() {
@@ -12,7 +12,6 @@ function updateCaseStatus() {
 			deployComplete = "{!R106520468.Deploy_Complete__c#value}", deployCompleteBefore = "{!R106520468.Deploy_Complete__c#before}",
 			release = parseInt("{!R106520468.R92045137#id}"), iteration = parseInt('{!R106520468.R92045107#id}'),
 			quoteType = "{!R106520468.Quote_Type__c#value}", quoteStatus = "{!R106520468.Quote_Status__c#value}",
-			caseClosed = "{!IsClosed#value}",
             caseWFstatus = "{!status#code}",
 			caseWFStatusBefore = parseInt("{!status#before}") > 0 ? String(rbv_api.getCodeById("case", 'status', parseInt("{!status#before}") )) : '',
             caseProduct = "{!R105296328.name#text}",
@@ -38,8 +37,8 @@ function updateCaseStatus() {
 			return null;
         } else if (devState == "ACCEPTED" && cancelled == "false" && deployComplete == "true") {
 			//Set any case to closed - released when project is accepted, not cancelled, and deploy complete and
-			//either state, deploy_complete flag, or cancelled flag changes			
-			if (devStateId != devStateBefore || deployComplete != deployCompleteBefore || cancelled != cancelledBefore) {
+			//check if case close flag is already set	
+			if (String("{!IsClosed#value}") == "false") {
 				//append project's Release Notes to the case's Case Answer field
 				var caseAnswer = rbv_api.getFieldValue("case", origCase, "Answer__c"),
 					projReleaseNotes = rbv_api.getFieldValue("project__c", projId, 'Release_Note__c'), releaseText = '';					
@@ -67,7 +66,7 @@ function updateCaseStatus() {
 				//If the current status of the case is already closed-released, do not send the email
 				//if ("{!Case_Status#code}" != 'CLOSEREL' && caseProduct != "360") rbv_api.runTrigger("case", origCase, "^Close_Case_Email", false);
                 //If 360 case is closed based on development activity, then send notification to creator that the dev project has been deployed.   
-                if ("{!Case_Status#code}" != 'CLOSEREL' && caseProduct == "360") {
+                if ("{!Case_Status#code}" != 'CLOSEREL' && parseInt("{!R92177204.R113487386#id}") > -1) {
 					rbv_api.runTrigger("case", origCase, "^Close_Case_Email_360", false);
 				}
 				return "CLOSEREL"; //set to closed-released
@@ -85,8 +84,8 @@ function updateCaseStatus() {
 			//Set case to Closed - Idea Submitted if backlog record type, is a portal idea, and canceled is unset, and case status is not Closed - Idea Submitted
             caseClosedTrue(); 
 			if ("{!notify_contact_on_case_close#value}" == "true") { 
-				if (caseProduct != "360") rbv_api.runTrigger("case", origCase, "^Close_Case_Idea_Email", false);
-            	else if (caseProduct == "360") rbv_api.runTrigger("case", origCase, "^Close_Case_Idea_Email_360", false);
+				if (parseInt("{!R92177204.R113487386#id}") <= -1) rbv_api.runTrigger("case", origCase, "^Close_Case_Idea_Email", false);
+            	else if (parseInt("{!R92177204.R113487386#id}") > -1) rbv_api.runTrigger("case", origCase, "^Close_Case_Idea_Email_360", false);
 			}
             return "CLOSEIDEA";
 		} else if (recordType == "BA" && "{!R106520468.Change_Request__c#value}" == "false" && cancelled == "false") {
@@ -131,14 +130,14 @@ function updateCaseStatus() {
 }
 function caseClosedFalse() {
 	//Unset the case closed flag if its set
-	if ("{!IsClosed#value}" == 'true') {
+	if (caseClosed == 'true') {
 		rbv_api.setFieldValue("case", origCase, "ClosedDate", '');
 		rbv_api.setFieldValue("case", parseInt("{!id}"), "IsClosed", 'false');
 	}
 }
 function caseClosedTrue() {
 	//Set the case closed flag if its unset
-	if ("{!IsClosed#value}" == 'false') {
+	if (caseClosed == 'false') {
 		rbv_api.setFieldValue("case", origCase, "ClosedDate", todayDate);
 		rbv_api.setFieldValue("case", parseInt("{!id}"), "IsClosed", 'true');
 	}
