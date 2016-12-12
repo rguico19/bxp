@@ -1,11 +1,14 @@
+//20161103-grosener-103882 - email not sent for closed case linked to dev project that was merged with deployed project
+
 var todayDate = new Date(rbv_api.getCurrentDate()), origCase = parseInt('{!id}'), caseClosed = "{!IsClosed#value}";
 if ("{!sync_status_to_project#value}" == "true") updateCaseStatus();
 //Is a tester, run case version of the script, if tester, use the project version
 function updateCaseStatus() {
 	var parEpic = parseInt('{!R106520468.Pppm_project__c#id}'), parTheme = parseInt('{!R106520468.Pppm_project__c2#id}'),
 		projId = parseInt('{!R106520468#id}'); //use the new Main Project - Sub Cases relationship
-	//This logic should only apply for a project that does not have a parent theme or epic.
+	//This logic should only apply for a case that has a related project-Idea that does not have a parent theme or epic.
 	if (projId > 0 && parEpic <= -1 && parTheme <= -1) {
+        rbv_api.log("debug", "Step 1 ");
 		var recordType = "{!R106520468.Record_Type_PL#code}",
 			devState = "{!R106520468.State__c#code}", devStateId = "{!R106520468.State__c#id}", devStateBefore = "{!R106520468.State__c#before}",
 			cancelled = "{!R106520468.Canceled__c#value}", cancelledBefore = "{!R106520468.Canceled__c#before}",
@@ -17,113 +20,144 @@ function updateCaseStatus() {
             caseProduct = "{!R105296328.name#text}",
 			custSupp = rbv_api.getIdByCode("case", "Record_Type_PL", "CSU");
       		
-		//if (devState == "ACCEPTED" && cancelled == "true" && caseClosed == "false") {
         // if project canceled, case wf status is approved, and case closed or if project canceled, case closed and before values case closed false - needed because of closed flag trigger firing before this one
 		if (cancelled == "true" && caseClosed == "false") {
-			//If project is canceled and case is not closed and
+			rbv_api.log("debug", "Step 2 ");
+          //If project is canceled and case is not closed and
 				//case wf status is not declined and not approval in progress and
 				//case was not previously pending and is approved (only previously approved cases should have this logic run and not recenetly approved ones
 			//change record type to Customer Support and set workflow status to Declined to allow for resubmission to development.
 			var openCase = false;
-			if (caseWFstatus != "$WFDECLINED" && caseWFstatus != "$WFPENDING" && caseWFstatus != "$WFAPPROVED") openCase = true;
-			else if (caseWFstatus == "$WFAPPROVED" && caseWFStatusBefore != "$WFPENDING") openCase = true;
+			if (caseWFstatus != "$WFDECLINED" && caseWFstatus != "$WFPENDING" && caseWFstatus != "$WFAPPROVED") {
+              	openCase = true;
+              	rbv_api.log("debug", "Step 3 ");
+            } else if (caseWFstatus == "$WFAPPROVED" && caseWFStatusBefore != "$WFPENDING") {
+              	openCase = true;
+              	rbv_api.log("debug", "Step 3a ");
+            }
 			
 			if (openCase) {
+              	rbv_api.log("debug", "Step 4 ");
 				rbv_api.setFieldValue("case", origCase, 'status', "Declined"); //Change case's WF status to Declined
 				rbv_api.setFieldValue("case", origCase, "Record_Type_PL", custSupp); //Change case's Record Type to "Customer Support"
 				return "OPEN"; //change case status to Open
 			}
         } else if ((cancelled == "true" && caseClosed == "false") || (cancelled == "true" && caseClosed == "true" && cancelledBefore == "false")) {
+          	rbv_api.log("debug", "Step 5 ");
 			return null;
         } else if (devState == "ACCEPTED" && cancelled == "false" && deployComplete == "true") {
+          	rbv_api.log("debug", "Step 6 ");
 			//Set any case to closed - released when project is accepted, not cancelled, and deploy complete and
-			//check if case close flag is already set	
-			if (String("{!IsClosed#value}") == "false") {
+			//either state, deploy_complete flag, or cancelled flag changes			
+			if (devStateId != devStateBefore || deployComplete != deployCompleteBefore || cancelled != cancelledBefore) {
+              	rbv_api.log("debug", "Step 7 ");
 				//append project's Release Notes to the case's Case Answer field
 				var caseAnswer = rbv_api.getFieldValue("case", origCase, "Answer__c"),
 					projReleaseNotes = rbv_api.getFieldValue("project__c", projId, 'Release_Note__c'), releaseText = '';					
 				
                 if (projReleaseNotes != null && projReleaseNotes != "" && caseProduct != "360") {             
+                  	rbv_api.log("debug", "Step 8 ");
                 	releaseText = "Development has been completed.  " + projReleaseNotes;
                 } else if (projReleaseNotes != null && projReleaseNotes != "" && caseProduct == "360") {
+                  	rbv_api.log("debug", "Step 9 ");
                 	releaseText = "Development has been completed and changes have been deployed to production.  " + projReleaseNotes;
+                  	rbv_api.log("debug", "Step 10 ");
                 } else if (caseProduct == "360") {
+                  	rbv_api.log("debug", "Step 11 ");
                 	releaseText = "Development has been completed and changes have been deployed to production.";
                 } else {
+                  	rbv_api.log("debug", "Step 12 ");
 					releaseText = "Development has been completed.";                  
                 }
 				caseAnswer = releaseText;
-              /*
-				if (caseAnswer == null || caseAnswer == "") {
-                    caseAnswer = releaseText;
-                } else {
-                	caseAnswer = caseAnswer + "  " + releaseText;
-
-                }          
-			  */
 				rbv_api.setFieldValue("case", origCase, "Answer__c", caseAnswer);
 				caseClosedTrue();
 				//If the current status of the case is already closed-released, do not send the email
-				//if ("{!Case_Status#code}" != 'CLOSEREL' && caseProduct != "360") rbv_api.runTrigger("case", origCase, "^Close_Case_Email", false);
-                //If 360 case is closed based on development activity, then send notification to creator that the dev project has been deployed.   
-                if ("{!Case_Status#code}" != 'CLOSEREL' && parseInt("{!R92177204.R113487386#id}") > -1) {
+              	if ("{!Case_Status#code}" != 'CLOSEREL' && caseProduct != "360") {
+                  	rbv_api.log("debug", "Step 13a ");
+                  	rbv_api.runTrigger("case", origCase, "^Close_Case_Email", false);
+                  	rbv_api.log("debug", "Step 13b ");
+                    rbv_api.println("^Close_Case_Email should have been ran.");
+                    rbv_api.println("Orig Case " + origCase);                  
+                  
+                } else if ("{!Case_Status#code}" != 'CLOSEREL' && caseProduct == "360") {
+                  	rbv_api.log("debug", "Step 13c ");
 					rbv_api.runTrigger("case", origCase, "^Close_Case_Email_360", false);
+                  	rbv_api.log("debug", "Step 13d ");
 				}
 				return "CLOSEREL"; //set to closed-released
 			}
 		} else if (recordType == "DE" && cancelled == "false" && deployComplete == "false" && caseClosed == "false") {
+          	rbv_api.log("debug", "Step 14 ");
 			//Set case to In Development if project is a defect and deploy_complete is unset and case is not closed
+			setSupportPhaseCloseDate();
 			return "INDEV";
-		}/* else if (recordType == "DE" && cancelled == "true" && caseClosed == "false" && caseWFstatus == "$WFAPPROVED") {
-			//Set case to Open if project is a defect and Cancelled is True and Case is Not Closed
-			//rbv_api.setFieldValue("case", origCase, 'status', "Declined"); //Change case's WF status to created
-			rbv_api.setFieldValue("case", origCase, "Record_Type_PL", custSupp); //Change case's Record Type to "Customer Support"
-			return "OPEN";
-		}*/ else if (recordType == "BA" && "{!R106520468.Change_Request__c#value}" == "true" && cancelled == "false"
-				&& caseClosed == "false" && "{!Case_Status#code}" != 'CLOSEIDEA' && devStateId != devStateBefore) { //check for change in dev state
-			//Set case to Closed - Idea Submitted if backlog record type, is a portal idea, and canceled is unset, and case status is not Closed - Idea Submitted
+		} else if (recordType == "BA" && "{!R106520468.Change_Request__c#value}" == "true" && cancelled == "false" && caseClosed == "false" && "{!Case_Status#code}" != 'CLOSEIDEA' && devStateId != devStateBefore) { //check for change in dev state
+			rbv_api.log("debug", "Step 15 ");  
+          	//Set case to Closed - Idea Submitted if backlog record type, is a portal idea, and canceled is unset, and case status is not Closed - Idea Submitted
             caseClosedTrue(); 
 			if ("{!notify_contact_on_case_close#value}" == "true") { 
-				if (parseInt("{!R92177204.R113487386#id}") <= -1) rbv_api.runTrigger("case", origCase, "^Close_Case_Idea_Email", false);
-            	else if (parseInt("{!R92177204.R113487386#id}") > -1) rbv_api.runTrigger("case", origCase, "^Close_Case_Idea_Email_360", false);
+              	rbv_api.log("debug", "Step 16 ");
+				if (parseInt("{!R92177204.R113487386#id}") <= -1) {
+                  	rbv_api.runTrigger("case", origCase, "^Close_Case_Idea_Email", false);
+              		rbv_api.log("debug", "Step 17 ");
+                } else if (parseInt("{!R92177204.R113487386#id}") > -1) {
+                  	rbv_api.runTrigger("case", origCase, "^Close_Case_Idea_Email_360", false);
+              		rbv_api.log("debug", "Step 18 ");
+                }
 			}
+			setSupportPhaseCloseDate();
             return "CLOSEIDEA";
 		} else if (recordType == "BA" && "{!R106520468.Change_Request__c#value}" == "false" && cancelled == "false") {
+          	rbv_api.log("debug", "Step 19 ");
 			//A backlog that isn't a Portal Idea but isn't cancelled or closed should be set to Under Consideration
 			caseClosedFalse();
-			return "UNDERCONS";
+			setSupportPhaseCloseDate();
+          	return "UNDERCONS";
 		} else if (recordType == "BA" && devState == "ACCEPTED" && caseClosed == "false") {
+          	rbv_api.log("debug", "Step 20 ");
 			//Cancel backlog project and Accept and the case is not closed - change to Open, Case record type change to Customer Support
 			rbv_api.setFieldValue("case", origCase, "Record_Type_PL", custSupp); //Change case's Record Type to "Customer Support"
 			return "OPEN";
 		} else if (recordType == "QU" && quoteStatus != "Canceled" && quoteType == "Ballpark") {
+          	rbv_api.log("debug", "Step 21 ");
 			//Set case to Researching if ballpark quote and quote type = ballpark
 			caseClosedFalse();
 			return "RSRCH";
 		} else if (recordType == "QU" && quoteStatus == "Quote Sent" && quoteType == "Quote") {
+          	rbv_api.log("debug", "Step 22 ");
 			//Set case to Pending Approval if quote and quote type = quote, quote status equals quote sent
 			caseClosedFalse();
 			return "Pending Approval";
 		} else if (recordType == "QU" && quoteStatus != "Quote Sent" && quoteType == "Quote") {
+          	rbv_api.log("debug", "Step 23 ");
 			//Set case to Pending Quote if quote and quote type = quote, quote status not equal quote sent
 			caseClosedFalse();
 			return "Pending Quote";
 		} else if (release > 0 && iteration > 0 && deployComplete == "false" && cancelled == "false") {
+          	rbv_api.log("debug", "Step 24 ");
 			//Set case to In Development if the project is assigned to an iteration and release and if deploy_complete is unset
 			caseClosedFalse();
+			setSupportPhaseCloseDate();
 			return "INDEV";
 		} else if (quoteStatus == "Approved" && "{!R106520468.Billable__c#value}" == "true" && cancelled == "false") {
+          	rbv_api.log("debug", "Step 25 ");
 			//If a project is billable and approved then keep the mod in development until deployed.
 			//added by GAR 11-7-14 to keep a approved billable mod in development until deployed.
 			caseClosedFalse();
+			setSupportPhaseCloseDate();
 			return "INDEV";
 		} else if ((devState == "INPROG" || devState == "COMP" || devState == "ACCEPTED") && cancelled == "false") {
+          	rbv_api.log("debug", "Step 26 ");
 			//If a project is assigned to a release and the status is In-Progress, Completed, or Accepted, assign a status of "In Development".
 			caseClosedFalse();
+			setSupportPhaseCloseDate();
 			return "INDEV";
 		} else if (recordType != "BA" && devState != "INPROG" && devState != "COMP" && devState != "ACCEPTED") {
+          	rbv_api.log("debug", "Step 27 ");
 			//if a project doesn't have a release and state NOT In-Progress, Completed, or Accepted, set case to "Under Consideration"
 			caseClosedFalse();
+			setSupportPhaseCloseDate();
 			return "UNDERCONS";
 		}
 	}
@@ -140,5 +174,14 @@ function caseClosedTrue() {
 	if (caseClosed == 'false') {
 		rbv_api.setFieldValue("case", origCase, "ClosedDate", todayDate);
 		rbv_api.setFieldValue("case", parseInt("{!id}"), "IsClosed", 'true');
+	}
+}
+
+function setSupportPhaseCloseDate() {
+	var supportDtClsEmpty = rbv_api.isFieldEmpty("case", parseInt("{!id}"), "Support_Phase_Closed_Date");
+	if (supportDtClsEmpty) {
+		// If Support Phase Closed Date does not currently have a value, then set it to current date
+		var currDt = new Date(rbv_api.getCurrentDate());
+		rbv_api.setFieldValue("case", parseInt("{!id}"), "Support_Phase_Closed_Date", currDt);
 	}
 }
